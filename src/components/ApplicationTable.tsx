@@ -90,7 +90,8 @@ export default function ApplicationTable({
         </button>
       </div>
 
-      {/* Content */}
+      {/* Content — min-h keeps the card from collapsing when results are fewer than a full page */}
+      <div className="min-h-[760px] flex flex-col">
       {isLoading ? (
         <LoadingSkeleton />
       ) : applications.length === 0 ? (
@@ -302,6 +303,7 @@ export default function ApplicationTable({
           )}
         </>
       )}
+      </div>
     </div>
   );
 }

@@ -1,13 +1,14 @@
 // Prisma schema for Job Application Tracker
-// SQLite for local dev — swap provider to "postgresql" + update DATABASE_URL for production
+// Uses postgresql for production (Neon). For local dev with SQLite, change provider back to "sqlite".
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
