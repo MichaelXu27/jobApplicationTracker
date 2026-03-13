@@ -1,0 +1,62 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
+      Ubuntu, Cantarell, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    /* Soft blue-gray — matches the reference design */
+    @apply bg-[#eaecf3] text-gray-900 antialiased;
+  }
+}
+
+@layer components {
+  /* Reusable form input style */
+  .input {
+    @apply block w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm
+      placeholder-gray-400 shadow-sm
+      focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500
+      disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-500;
+  }
+
+  .input-error {
+    @apply border-red-400 focus:border-red-500 focus:ring-red-500;
+  }
+
+  /* Primary button */
+  .btn-primary {
+    @apply inline-flex items-center justify-center rounded-xl bg-blue-600 px-4 py-2
+      text-sm font-medium text-white shadow-sm
+      hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
+      disabled:cursor-not-allowed disabled:opacity-60
+      transition-colors duration-150;
+  }
+
+  /* Secondary / outlined button */
+  .btn-secondary {
+    @apply inline-flex items-center justify-center rounded-xl border border-gray-200
+      bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm
+      hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
+      disabled:cursor-not-allowed disabled:opacity-60
+      transition-colors duration-150;
+  }
+
+  /* Danger button */
+  .btn-danger {
+    @apply inline-flex items-center justify-center rounded-xl bg-red-600 px-4 py-2
+      text-sm font-medium text-white shadow-sm
+      hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2
+      disabled:cursor-not-allowed disabled:opacity-60
+      transition-colors duration-150;
+  }
+
+  /* Card — white rounded-2xl, matches screenshot style */
+  .card {
+    @apply rounded-2xl bg-white shadow-sm;
+  }
+}
