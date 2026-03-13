@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import type { Application, ApplicationStatus } from "@/types";
-import { APPLICATION_STATUSES, STATUS_LABELS } from "@/types";
 import StatusBadge from "./StatusBadge";
 import CompanyAvatar from "./CompanyAvatar";
+import StatusDropdown from "./StatusDropdown";
 
 interface ApplicationTableProps {
   applications: Application[];
@@ -64,16 +64,13 @@ export default function ApplicationTable({
         </div>
 
         {/* Status filter */}
-        <select
-          value={statusFilter}
-          onChange={(e) => onStatusFilterChange(e.target.value as ApplicationStatus | "")}
-          className="input sm:w-44"
-        >
-          <option value="">All Statuses</option>
-          {APPLICATION_STATUSES.map((s) => (
-            <option key={s} value={s}>{STATUS_LABELS[s]}</option>
-          ))}
-        </select>
+        <div className="sm:w-44">
+          <StatusDropdown
+            value={statusFilter}
+            onChange={(v) => onStatusFilterChange(v as ApplicationStatus | "")}
+            includeAll
+          />
+        </div>
 
         {/* Sort */}
         <button onClick={onSortToggle} className="btn-secondary gap-1.5 whitespace-nowrap">
@@ -105,7 +102,14 @@ export default function ApplicationTable({
         <>
           {/* Desktop table */}
           <div className="hidden md:block overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm table-fixed">
+              <colgroup>
+                <col />
+                <col className="w-36" />
+                <col className="w-36" />
+                <col className="w-32" />
+                <col className="w-28" />
+              </colgroup>
               <thead>
                 <tr className="bg-gray-50/80 border-b border-gray-100 text-left">
                   <th className="px-4 py-3 font-medium text-gray-500 text-xs uppercase tracking-wide">
@@ -142,7 +146,7 @@ export default function ApplicationTable({
                           </div>
                         </div>
                       </td>
-                      <td className="px-4 py-3.5 text-gray-500 text-sm">
+                      <td className="px-4 py-3.5 text-gray-500 text-sm truncate max-w-0">
                         {app.location || <span className="text-gray-300">—</span>}
                       </td>
                       <td className="px-4 py-3.5 text-gray-500 text-sm">

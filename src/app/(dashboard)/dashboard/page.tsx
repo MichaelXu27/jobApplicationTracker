@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import toast from "react-hot-toast";
 
 import type { Application, ApplicationStatus } from "@/types";
@@ -10,26 +10,23 @@ import ApplicationChart from "@/components/ApplicationChart";
 import RecentApplicationsPanel from "@/components/RecentApplicationsPanel";
 import InterviewPipelineCard from "@/components/InterviewPipelineCard";
 import ApplicationProgressCard from "@/components/ApplicationProgressCard";
+import ApplicationPieChart from "@/components/ApplicationPieChart";
 import ApplicationTable from "@/components/ApplicationTable";
 import ApplicationForm from "@/components/ApplicationForm";
 import DeleteConfirmDialog from "@/components/DeleteConfirmDialog";
+
+const PAGE_SIZE = 15;
 
 export default function DashboardPage() {
   // -----------------------------------------------------------------------
   // State
   // -----------------------------------------------------------------------
 
-  // Full unfiltered list for the top cards / chart
   const [allApplications, setAllApplications] = useState<Application[]>([]);
   const [allLoading, setAllLoading] = useState(true);
 
-  // Filtered / paginated list for the bottom table
-  const [tableApplications, setTableApplications] = useState<Application[]>([]);
-  const [tableLoading, setTableLoading] = useState(true);
+  // Table filter / sort / page state — all computed client-side
   const [tablePage, setTablePage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-
-  // Table filter state
   const [statusFilter, setStatusFilter] = useState<ApplicationStatus | "">("");
   const [searchQuery, setSearchQuery] = useState("");
   const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
@@ -45,7 +42,7 @@ export default function DashboardPage() {
   const [isDeleting, setIsDeleting] = useState(false);
 
   // -----------------------------------------------------------------------
-  // Data fetching
+  // Data fetching — single fetch for everything
   // -----------------------------------------------------------------------
 
   const fetchAll = useCallback(async () => {
@@ -62,41 +59,47 @@ export default function DashboardPage() {
     }
   }, []);
 
-  const fetchTable = useCallback(async () => {
-    setTableLoading(true);
-    try {
-      const params = new URLSearchParams();
-      if (statusFilter) params.set("status", statusFilter);
-      if (searchQuery) params.set("search", searchQuery);
-      params.set("sortOrder", sortOrder);
-      params.set("page", String(tablePage));
-      params.set("limit", "15");
-
-      const res = await fetch(`/api/applications?${params}`);
-      if (!res.ok) throw new Error();
-      const data = await res.json();
-      setTableApplications(data.data);
-      setTotalPages(data.totalPages);
-    } catch {
-      toast.error("Failed to load applications");
-    } finally {
-      setTableLoading(false);
-    }
-  }, [statusFilter, searchQuery, sortOrder, tablePage]);
-
   useEffect(() => { fetchAll(); }, [fetchAll]);
-  useEffect(() => { fetchTable(); }, [fetchTable]);
 
-  // Refresh both lists when the navbar bulk-import or nuclear delete fires
+  // Refresh when navbar bulk-import or nuclear delete fires
   useEffect(() => {
-    const handler = () => { fetchAll(); setTablePage(1); fetchTable(); };
+    const handler = () => { fetchAll(); setTablePage(1); };
     window.addEventListener("applications-imported", handler);
     window.addEventListener("applications-cleared", handler);
     return () => {
       window.removeEventListener("applications-imported", handler);
       window.removeEventListener("applications-cleared", handler);
     };
-  }, [fetchAll, fetchTable]);
+  }, [fetchAll]);
+
+  // -----------------------------------------------------------------------
+  // Client-side filter / sort / paginate
+  // -----------------------------------------------------------------------
+
+  const { tableApplications, totalPages } = useMemo(() => {
+    const q = searchQuery.toLowerCase();
+
+    let filtered = allApplications.filter((a) => {
+      const matchesStatus = !statusFilter || a.status === statusFilter;
+      const matchesSearch =
+        !q ||
+        a.jobTitle.toLowerCase().includes(q) ||
+        a.company.toLowerCase().includes(q) ||
+        (a.location ?? "").toLowerCase().includes(q);
+      return matchesStatus && matchesSearch;
+    });
+
+    filtered = [...filtered].sort((a, b) => {
+      const diff = new Date(a.dateApplied).getTime() - new Date(b.dateApplied).getTime();
+      return sortOrder === "desc" ? -diff : diff;
+    });
+
+    const total = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+    const safePage = Math.min(tablePage, total);
+    const paged = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+
+    return { tableApplications: paged, totalPages: total };
+  }, [allApplications, statusFilter, searchQuery, sortOrder, tablePage]);
 
   // -----------------------------------------------------------------------
   // CRUD handlers
@@ -105,9 +108,7 @@ export default function DashboardPage() {
   const handleSave = async (data: ApplicationInput) => {
     setIsSaving(true);
     try {
-      const url = editingApp
-        ? `/api/applications/${editingApp.id}`
-        : "/api/applications";
+      const url = editingApp ? `/api/applications/${editingApp.id}` : "/api/applications";
       const method = editingApp ? "PUT" : "POST";
 
       const res = await fetch(url, {
@@ -124,7 +125,7 @@ export default function DashboardPage() {
       toast.success(editingApp ? "Application updated!" : "Application added!");
       setFormOpen(false);
       setEditingApp(null);
-      await Promise.all([fetchAll(), fetchTable()]);
+      await fetchAll();
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : "Failed to save");
     } finally {
@@ -136,28 +137,16 @@ export default function DashboardPage() {
     if (!deleteTarget) return;
     setIsDeleting(true);
     try {
-      const res = await fetch(`/api/applications/${deleteTarget.id}`, {
-        method: "DELETE",
-      });
+      const res = await fetch(`/api/applications/${deleteTarget.id}`, { method: "DELETE" });
       if (!res.ok) throw new Error();
       toast.success("Application deleted");
       setDeleteTarget(null);
-      await Promise.all([fetchAll(), fetchTable()]);
+      await fetchAll();
     } catch {
       toast.error("Failed to delete");
     } finally {
       setIsDeleting(false);
     }
-  };
-
-  const handleEdit = (app: Application) => {
-    setEditingApp(app);
-    setFormOpen(true);
-  };
-
-  const handleAddNew = () => {
-    setEditingApp(null);
-    setFormOpen(true);
   };
 
   const handleStatusFilterChange = (s: ApplicationStatus | "") => {
@@ -194,10 +183,12 @@ export default function DashboardPage() {
             onPeriodChange={setChartPeriod}
           />
 
+          <ApplicationPieChart applications={allApplications} />
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <InterviewPipelineCard
               applications={allApplications}
-              onEdit={handleEdit}
+              onEdit={(app) => { setEditingApp(app); setFormOpen(true); }}
             />
             <ApplicationProgressCard applications={allApplications} />
           </div>
@@ -207,9 +198,9 @@ export default function DashboardPage() {
         <div className="lg:col-span-5 lg:sticky lg:top-24">
           <RecentApplicationsPanel
             applications={allApplications}
-            onEdit={handleEdit}
+            onEdit={(app) => { setEditingApp(app); setFormOpen(true); }}
             onDelete={setDeleteTarget}
-            onAdd={handleAddNew}
+            onAdd={() => { setEditingApp(null); setFormOpen(true); }}
           />
         </div>
       </div>
@@ -226,7 +217,7 @@ export default function DashboardPage() {
         </div>
         <ApplicationTable
           applications={tableApplications}
-          isLoading={tableLoading}
+          isLoading={allLoading}
           statusFilter={statusFilter}
           searchQuery={searchQuery}
           sortOrder={sortOrder}
@@ -236,9 +227,9 @@ export default function DashboardPage() {
           onSearchChange={handleSearchChange}
           onSortToggle={handleSortToggle}
           onPageChange={setTablePage}
-          onEdit={handleEdit}
+          onEdit={(app) => { setEditingApp(app); setFormOpen(true); }}
           onDelete={setDeleteTarget}
-          onAddNew={handleAddNew}
+          onAddNew={() => { setEditingApp(null); setFormOpen(true); }}
         />
       </div>
 

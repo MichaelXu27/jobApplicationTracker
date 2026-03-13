@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { useForm } from "react-hook-form";
+import { useEffect, useRef, useState } from "react";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { applicationSchema, type ApplicationInput } from "@/lib/validations";
-import { APPLICATION_STATUSES, STATUS_LABELS, type Application } from "@/types";
+import { type Application } from "@/types";
+import StatusDropdown from "./StatusDropdown";
 
 interface ApplicationFormProps {
   isOpen: boolean;
@@ -14,6 +15,173 @@ interface ApplicationFormProps {
   onClose: () => void;
 }
 
+// ---------------------------------------------------------------------------
+// DatePicker
+// ---------------------------------------------------------------------------
+const DAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+
+function DatePicker({
+  value,
+  onChange,
+  hasError,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  hasError?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  // Parse currently selected date or default to today
+  const parsed = value ? new Date(value + "T00:00:00") : new Date();
+  const [viewYear, setViewYear] = useState(parsed.getFullYear());
+  const [viewMonth, setViewMonth] = useState(parsed.getMonth());
+
+  // Sync view when value changes externally
+  useEffect(() => {
+    if (value) {
+      const d = new Date(value + "T00:00:00");
+      if (!isNaN(d.getTime())) {
+        setViewYear(d.getFullYear());
+        setViewMonth(d.getMonth());
+      }
+    }
+  }, [value]);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  const displayValue = value
+    ? new Date(value + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+    : "";
+
+  function prevMonth() {
+    if (viewMonth === 0) { setViewMonth(11); setViewYear((y) => y - 1); }
+    else setViewMonth((m) => m - 1);
+  }
+  function nextMonth() {
+    if (viewMonth === 11) { setViewMonth(0); setViewYear((y) => y + 1); }
+    else setViewMonth((m) => m + 1);
+  }
+
+  // Build calendar grid
+  const firstDay = new Date(viewYear, viewMonth, 1).getDay();
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+  const cells: (number | null)[] = [
+    ...Array(firstDay).fill(null),
+    ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
+  ];
+  // Pad to complete last row
+  while (cells.length % 7 !== 0) cells.push(null);
+
+  function toYMD(year: number, month: number, day: number) {
+    return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  }
+
+  const selectedYMD = value;
+  const todayYMD = toYMD(new Date().getFullYear(), new Date().getMonth(), new Date().getDate());
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className={`input flex items-center justify-between gap-2 cursor-pointer ${hasError ? "input-error" : ""}`}
+      >
+        <span className={`text-sm ${displayValue ? "text-gray-900" : "text-gray-400"}`}>
+          {displayValue || "Select date"}
+        </span>
+        <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+            d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        </svg>
+      </button>
+
+      {open && (
+        <div className="absolute z-20 mt-1 bg-white rounded-xl border border-gray-200 shadow-xl p-3 w-72">
+          {/* Month navigation */}
+          <div className="flex items-center justify-between mb-3">
+            <button
+              type="button"
+              onClick={prevMonth}
+              className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-900 transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            <span className="text-sm font-semibold text-gray-900">
+              {MONTHS[viewMonth]} {viewYear}
+            </span>
+            <button
+              type="button"
+              onClick={nextMonth}
+              className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-900 transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Day headers */}
+          <div className="grid grid-cols-7 mb-1">
+            {DAYS.map((d) => (
+              <div key={d} className="text-center text-[11px] font-medium text-gray-400 py-1">{d}</div>
+            ))}
+          </div>
+
+          {/* Day cells */}
+          <div className="grid grid-cols-7 gap-y-0.5">
+            {cells.map((day, idx) => {
+              if (day === null) return <div key={`empty-${idx}`} />;
+              const ymd = toYMD(viewYear, viewMonth, day);
+              const isSelected = ymd === selectedYMD;
+              const isToday = ymd === todayYMD;
+              return (
+                <button
+                  key={ymd}
+                  type="button"
+                  onClick={() => { onChange(ymd); setOpen(false); }}
+                  className={`w-full aspect-square flex items-center justify-center rounded-lg text-sm transition-colors
+                    ${isSelected
+                      ? "bg-blue-600 text-white font-semibold"
+                      : isToday
+                      ? "bg-blue-50 text-blue-700 font-semibold ring-1 ring-blue-200"
+                      : "text-gray-700 hover:bg-gray-100"
+                    }`}
+                >
+                  {day}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Today shortcut */}
+          <div className="mt-3 pt-2.5 border-t border-gray-100">
+            <button
+              type="button"
+              onClick={() => { onChange(todayYMD); setOpen(false); }}
+              className="w-full text-center text-xs font-medium text-blue-600 hover:text-blue-800 transition-colors py-0.5"
+            >
+              Today
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// ApplicationForm
+// ---------------------------------------------------------------------------
 export default function ApplicationForm({
   isOpen,
   editingApplication,
@@ -27,21 +195,19 @@ export default function ApplicationForm({
     register,
     handleSubmit,
     reset,
+    control,
     formState: { errors },
   } = useForm<ApplicationInput>({
     resolver: zodResolver(applicationSchema),
     defaultValues: { status: "APPLIED" },
   });
 
-  // react-hook-form's register() returns its own ref. To also focus the first
-  // field, we extract the ref callback and call both.
   const jobTitleRegistration = register("jobTitle");
   const jobTitleRef = (el: HTMLInputElement | null) => {
     jobTitleRegistration.ref(el);
     firstInputRef.current = el;
   };
 
-  // Populate form when editing, or reset for create
   useEffect(() => {
     if (isOpen) {
       if (editingApplication) {
@@ -71,12 +237,10 @@ export default function ApplicationForm({
           recruiterContact: "",
         });
       }
-      // Focus first input after DOM settles
       setTimeout(() => firstInputRef.current?.focus(), 50);
     }
   }, [isOpen, editingApplication, reset]);
 
-  // Close on Escape
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === "Escape" && !isSaving) onClose();
@@ -173,10 +337,16 @@ export default function ApplicationForm({
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
                   Date Applied <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="date"
-                  className={`input ${errors.dateApplied ? "input-error" : ""}`}
-                  {...register("dateApplied")}
+                <Controller
+                  name="dateApplied"
+                  control={control}
+                  render={({ field }) => (
+                    <DatePicker
+                      value={field.value ?? ""}
+                      onChange={field.onChange}
+                      hasError={!!errors.dateApplied}
+                    />
+                  )}
                 />
                 {errors.dateApplied && (
                   <p className="mt-1 text-xs text-red-600">{errors.dateApplied.message}</p>
@@ -186,14 +356,17 @@ export default function ApplicationForm({
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
                   Status <span className="text-red-500">*</span>
                 </label>
-                <select
-                  className={`input ${errors.status ? "input-error" : ""}`}
-                  {...register("status")}
-                >
-                  {APPLICATION_STATUSES.map((s) => (
-                    <option key={s} value={s}>{STATUS_LABELS[s]}</option>
-                  ))}
-                </select>
+                <Controller
+                  name="status"
+                  control={control}
+                  render={({ field }) => (
+                    <StatusDropdown
+                      value={field.value ?? "APPLIED"}
+                      onChange={field.onChange}
+                      hasError={!!errors.status}
+                    />
+                  )}
+                />
                 {errors.status && (
                   <p className="mt-1 text-xs text-red-600">{errors.status.message}</p>
                 )}
