@@ -2,13 +2,15 @@
 
 import { signOut } from "next-auth/react";
 import { useRef, useState } from "react";
+import { usePathname } from "next/navigation";
+import Link from "next/link";
 import toast from "react-hot-toast";
 import * as XLSX from "xlsx";
 import type { Session } from "next-auth";
 import type { ApplicationPayload, ApplicationStatus } from "@/types";
 
 interface NavbarProps {
-  user: Session["user"];
+  user?: Session["user"];
 }
 
 // ---------------------------------------------------------------------------
@@ -137,6 +139,8 @@ export default function Navbar({ user }: NavbarProps) {
   const [importing, setImporting] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [clearing, setClearing] = useState(false);
+  const pathname = usePathname();
+  const isLeetCode = pathname.startsWith("/leetcode");
 
   async function handleExport() {
     setExporting(true);
@@ -188,6 +192,8 @@ export default function Navbar({ user }: NavbarProps) {
       setClearing(false);
     }
   }
+
+  const displayName = user?.name ?? user?.email;
 
   const initials = user?.name
     ? user.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
@@ -274,7 +280,7 @@ export default function Navbar({ user }: NavbarProps) {
   return (
     <header className="bg-white sticky top-0 z-30 shadow-[0_1px_0_0_rgba(0,0,0,0.06)]">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="flex h-16 items-center gap-6">
+        <div className="flex h-16 items-center gap-4">
 
           {/* Logo */}
           <div className="flex items-center gap-2.5 shrink-0">
@@ -284,84 +290,122 @@ export default function Navbar({ user }: NavbarProps) {
                   d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
               </svg>
             </div>
-            <span className="text-[15px] font-bold tracking-tight text-gray-900">JobTracker</span>
+            <span className="text-[15px] font-bold tracking-tight text-gray-900 hidden sm:block">Tracker</span>
           </div>
+
+          {/* Navigation tabs */}
+          <nav className="flex items-center gap-1 bg-gray-100 rounded-xl p-1">
+            <Link
+              href="/dashboard"
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                !isLeetCode
+                  ? "bg-white text-gray-900 shadow-sm"
+                  : "text-gray-500 hover:text-gray-800 hover:bg-gray-50"
+              }`}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+              <span>Jobs</span>
+            </Link>
+            <Link
+              href="/leetcode"
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                isLeetCode
+                  ? "bg-white text-gray-900 shadow-sm"
+                  : "text-gray-500 hover:text-gray-800 hover:bg-gray-50"
+              }`}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+              </svg>
+              <span>LeetCode</span>
+            </Link>
+          </nav>
 
           {/* Right side */}
           <div className="ml-auto flex items-center gap-3">
 
-            {/* Export xlsx button */}
-            <button
-              onClick={handleExport}
-              disabled={exporting}
-              className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-xl
-                border border-gray-200 bg-white text-gray-600
-                hover:bg-gray-50 hover:border-gray-300 hover:text-gray-900
-                disabled:opacity-50 disabled:cursor-not-allowed
-                transition-colors"
-              title="Export applications to .xlsx"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-              </svg>
-              <span className="hidden sm:inline">{exporting ? "Exporting…" : "Export xlsx"}</span>
-            </button>
+            {/* Jobs-only controls */}
+            {!isLeetCode && (
+              <>
+                {/* Export xlsx button */}
+                <button
+                  onClick={handleExport}
+                  disabled={exporting}
+                  className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-xl
+                    border border-gray-200 bg-white text-gray-600
+                    hover:bg-gray-50 hover:border-gray-300 hover:text-gray-900
+                    disabled:opacity-50 disabled:cursor-not-allowed
+                    transition-colors"
+                  title="Export applications to .xlsx"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                      d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  <span className="hidden sm:inline">{exporting ? "Exporting…" : "Export xlsx"}</span>
+                </button>
 
-            {/* Import xlsx button */}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".xlsx"
-              className="hidden"
-              onChange={handleFileChange}
-            />
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={importing}
-              className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-xl
-                border border-gray-200 bg-white text-gray-600
-                hover:bg-gray-50 hover:border-gray-300 hover:text-gray-900
-                disabled:opacity-50 disabled:cursor-not-allowed
-                transition-colors"
-              title="Import applications from .xlsx"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-              </svg>
-              <span className="hidden sm:inline">{importing ? "Importing…" : "Import xlsx"}</span>
-            </button>
+                {/* Import xlsx button */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".xlsx"
+                  className="hidden"
+                  onChange={handleFileChange}
+                />
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={importing}
+                  className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-xl
+                    border border-gray-200 bg-white text-gray-600
+                    hover:bg-gray-50 hover:border-gray-300 hover:text-gray-900
+                    disabled:opacity-50 disabled:cursor-not-allowed
+                    transition-colors"
+                  title="Import applications from .xlsx"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                      d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                  </svg>
+                  <span className="hidden sm:inline">{importing ? "Importing…" : "Import xlsx"}</span>
+                </button>
 
-            {/* [DEV] Nuclear delete */}
-            <button
-              onClick={handleClearAll}
-              disabled={clearing}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-xl
-                border border-red-200 bg-white text-red-500
-                hover:bg-red-50 hover:border-red-400
-                disabled:opacity-50 disabled:cursor-not-allowed
-                transition-colors"
-              title="[DEV] Delete all applications"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-              <span className="hidden sm:inline">{clearing ? "Clearing…" : "Clear all"}</span>
-            </button>
+                {/* [DEV] Nuclear delete */}
+                <button
+                  onClick={handleClearAll}
+                  disabled={clearing}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-xl
+                    border border-red-200 bg-white text-red-500
+                    hover:bg-red-50 hover:border-red-400
+                    disabled:opacity-50 disabled:cursor-not-allowed
+                    transition-colors"
+                  title="[DEV] Delete all applications"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                  <span className="hidden sm:inline">{clearing ? "Clearing…" : "Clear all"}</span>
+                </button>
+              </>
+            )}
 
             {/* User section */}
-            <div className="flex items-center gap-2.5">
-              {/* Avatar */}
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600
-                flex items-center justify-center text-white text-xs font-semibold shrink-0">
-                {initials}
+            {displayName && (
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600
+                  flex items-center justify-center text-white text-xs font-semibold shrink-0">
+                  {initials}
+                </div>
+                <span className="hidden lg:block text-sm font-medium text-gray-700 max-w-[120px] truncate">
+                  {displayName}
+                </span>
               </div>
-              <span className="hidden lg:block text-sm font-medium text-gray-700 max-w-[120px] truncate">
-                {user?.name ?? user?.email}
-              </span>
-            </div>
+            )}
 
             {/* Sign out */}
             <button

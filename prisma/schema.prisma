@@ -1,14 +1,13 @@
 // Prisma schema for Job Application Tracker
-// Uses postgresql for production (Neon). For local dev with SQLite, change provider back to "sqlite".
+// Local dev: SQLite. For production (Neon), change provider to "postgresql" and add directUrl.
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
 }
 
 model User {
@@ -18,8 +17,39 @@ model User {
   password     String        // bcrypt hash — never store plaintext
   createdAt    DateTime      @default(now())
   applications Application[]
+  userProblems UserProblem[]
 
   @@map("users")
+}
+
+model Problem {
+  id           String        @id @default(cuid())
+  slug         String        @unique
+  title        String
+  difficulty   String        // "easy" | "medium" | "hard"
+  topic        String
+  source       String        @default("NeetCode")
+  userProblems UserProblem[]
+
+  @@map("problems")
+}
+
+model UserProblem {
+  id           String    @id @default(cuid())
+  userId       String
+  problemId    String
+  status       String    @default("unsolved") // "unsolved" | "solved" | "review"
+  lastSolvedAt DateTime?
+  easeFactor   Float     @default(2.5)
+  intervalDays Int       @default(1)
+  nextReviewAt DateTime?
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  problem Problem @relation(fields: [problemId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, problemId])
+  @@index([userId, status, nextReviewAt])
+  @@map("user_problems")
 }
 
 model Application {

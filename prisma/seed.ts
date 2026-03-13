@@ -9,6 +9,8 @@
 
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import * as fs from "fs";
+import * as path from "path";
 
 const prisma = new PrismaClient();
 
@@ -110,6 +112,22 @@ async function main() {
   });
 
   console.log(`✅ Created ${applications.count} applications`);
+
+  // Seed NeetCode problems
+  const filePath = path.join(process.cwd(), "data", "neetcode_150_full.json");
+  const problems: { slug: string; title: string; difficulty: string; topic: string }[] =
+    JSON.parse(fs.readFileSync(filePath, "utf-8"));
+
+  console.log(`\n🌱 Seeding ${problems.length} NeetCode problems…`);
+  for (const p of problems) {
+    await prisma.problem.upsert({
+      where: { slug: p.slug },
+      update: { title: p.title, difficulty: p.difficulty, topic: p.topic },
+      create: { slug: p.slug, title: p.title, difficulty: p.difficulty, topic: p.topic, source: "NeetCode" },
+    });
+  }
+  console.log(`✅ Upserted ${problems.length} problems`);
+
   console.log("\n📋 Demo credentials:");
   console.log("   Email:    demo@example.com");
   console.log("   Password: password123");
