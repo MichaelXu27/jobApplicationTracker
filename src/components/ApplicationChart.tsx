@@ -14,8 +14,9 @@ function toLocalDate(date: Date): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
+// Extracts the stored date string (UTC-based) without timezone shift
 function appLocalDate(iso: string): string {
-  return toLocalDate(new Date(iso));
+  return iso.slice(0, 10);
 }
 
 interface DataPoint {
@@ -45,7 +46,7 @@ function getMonthData(applications: Application[]): DataPoint[] {
     const weekStart = new Date(weekEnd);
     weekStart.setDate(weekEnd.getDate() - 6);
     const count = applications.filter((a) => {
-      const d = new Date(a.dateApplied);
+      const d = new Date(a.dateApplied.slice(0, 10) + "T00:00:00");
       return d >= weekStart && d <= weekEnd;
     }).length;
     return {
@@ -79,14 +80,14 @@ export default function ApplicationChart({ applications, period, onPeriodChange 
 
   // Week-over-week % change
   const thisWeek = applications.filter((a) => {
-    const d = new Date(a.dateApplied);
+    const d = new Date(a.dateApplied.slice(0, 10) + "T00:00:00");
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - 7);
     return d >= cutoff;
   }).length;
 
   const lastWeek = applications.filter((a) => {
-    const d = new Date(a.dateApplied);
+    const d = new Date(a.dateApplied.slice(0, 10) + "T00:00:00");
     const end = new Date();
     end.setDate(end.getDate() - 7);
     const start = new Date();

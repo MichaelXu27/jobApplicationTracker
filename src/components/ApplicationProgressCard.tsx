@@ -40,7 +40,7 @@ export default function ApplicationProgressCard({ applications }: Props) {
       d.setDate(today.getDate() - (6 - i));
       const ds = toLocalDate(d);
       const appsOnDay = applications.filter(
-        (a) => toLocalDate(new Date(a.dateApplied)) === ds
+        (a) => a.dateApplied.slice(0, 10) === ds
       );
       return {
         date: ds,
@@ -57,6 +57,7 @@ export default function ApplicationProgressCard({ applications }: Props) {
     month: "short",
     day: "numeric",
     year: "numeric",
+    timeZone: "UTC",
   });
 
   return (
