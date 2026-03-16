@@ -91,7 +91,10 @@ export default function DashboardPage() {
 
     filtered = [...filtered].sort((a, b) => {
       const diff = new Date(a.dateApplied).getTime() - new Date(b.dateApplied).getTime();
-      return sortOrder === "desc" ? -diff : diff;
+      if (diff !== 0) return sortOrder === "desc" ? -diff : diff;
+      // Same day — sort by creation time so newest entry comes first
+      const createdDiff = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      return -createdDiff;
     });
 
     const total = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
