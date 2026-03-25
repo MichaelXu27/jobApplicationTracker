@@ -9,9 +9,7 @@ interface Props {
 }
 
 export default function InterviewPipelineCard({ applications, onEdit }: Props) {
-  const pipeline = applications
-    .filter((a) => a.status === "INTERVIEWING")
-    .slice(0, 4);
+  const pipeline = applications.filter((a) => a.status === "INTERVIEWING");
 
   return (
     <div className="card p-5">
